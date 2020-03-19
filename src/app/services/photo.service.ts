@@ -35,18 +35,35 @@ export class PhotoService {
     this.photos.unshift(savedImageFile);
     Storage.set({
       key: this.PHOTO_STORAGE,
-      value: this.platform.is('hybrid')
-              ? JSON.stringify(this.photos)  
-              : JSON.stringify(this.photos.map(p => {
-                // Don't save the base64 representation of the photo data, 
-                // since it's already saved on the Filesystem
-                const photoCopy = { ...p };
-                delete photoCopy.base64;
-    
-                return photoCopy;
-            }))
-      
+      value: this.platform.is("hybrid")
+        ? JSON.stringify(this.photos)
+        : JSON.stringify(
+            this.photos.map(p => {
+              // Don't save the base64 representation of the photo data,
+              // since it's already saved on the Filesystem
+              const photoCopy = { ...p };
+              delete photoCopy.base64;
+
+              return photoCopy;
+            })
+          )
     });
+  }
+
+  private async savePicture(cameraPhoto: CameraPhoto) {
+    //Convert photo to base64 format, required by Filesystem API to save
+    const base64Data = await this.readAsBase64(cameraPhoto);
+
+    // Write the file to the data directory
+    const fileName = new Date().getTime() + ".jpeg";
+    await Filesystem.writeFile({
+      path: fileName,
+      data: base64Data,
+      directory: FilesystemDirectory.Data
+    });
+
+    // Get platform-specific photo filepaths
+    return await this.getPhotoFile(cameraPhoto, fileName);
   }
 
   public async loadSaved() {
@@ -69,22 +86,6 @@ export class PhotoService {
         photo.base64 = `data:image/jpeg;base64,${readFile.data}`;
       }
     }
-  }
-
-  private async savePicture(cameraPhoto: CameraPhoto) {
-    //Convert photo to base64 format, required by Filesystem API to save
-    const base64Data = await this.readAsBase64(cameraPhoto);
-
-    // Write the file to the data directory
-    const fileName = new Date().getTime() + ".jpeg";
-    await Filesystem.writeFile({
-      path: fileName,
-      data: base64Data,
-      directory: FilesystemDirectory.Data
-    });
-
-    // Get platform-specific photo filepaths
-    return await this.getPhotoFile(cameraPhoto, fileName);
   }
 
   private async readAsBase64(cameraPhoto: CameraPhoto) {
